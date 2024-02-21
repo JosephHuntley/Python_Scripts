@@ -1,8 +1,9 @@
 import requests
 import json
-import sys
-from logging_config import load_config
+import logging
+from logging_config import load_config, configure_logging
 
+configure_logging()
 config_data = load_config()
 
 # Fetch running distance from Strava API
@@ -14,6 +15,7 @@ headers = {
 res = requests.request("GET", config_data['s_url'], headers=headers, data=payload)
 
 running_distance = round(json.loads(res.text)['ytd_run_totals']['distance'] / 1609.34, 2)
+logging.info(running_distance)
 
 # Update running distance in Home Assistant
 headers = {
@@ -32,6 +34,6 @@ try:
     data = json.dumps({"state": running_distance})
     response = requests.post(api_endpoint, headers=headers, data=data)
     response.raise_for_status()  # Raise an exception for HTTP errors
-    print(response.text)
+    logging.info(f"HTTP Status Code: {response.status_code}")
 except requests.exceptions.RequestException as e:
     logging.error(f"Error updating running distance status: {e}")
