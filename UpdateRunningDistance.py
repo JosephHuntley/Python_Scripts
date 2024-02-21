@@ -1,7 +1,6 @@
 import requests
 import json
 import sys
-sys.path.append("..") 
 from logging_config import load_config
 
 config_data = load_config()
