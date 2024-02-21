@@ -6,7 +6,7 @@ def configure_logging():
     config_data = load_config()
     if config_data['server'] == 'prod':
         # Log to a file
-        logging.basicConfig(filename='/home/Rasp/PyScript/log/ss.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(filename='/home/Rasp/PyScript/log/scripts.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     elif config_data['server'] == 'dev':
         # Log to the terminal
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')   
