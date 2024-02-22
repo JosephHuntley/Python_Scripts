@@ -11,11 +11,15 @@ payload = {}
 headers = {
     'Authorization': f"Bearer {config_data['s_api_key']}"
 }
+try:
+    res = requests.request("GET", config_data['s_url'], headers=headers, data=payload)
+    response.raise_for_status()  # Raise an exception for HTTP errors
+    
+    running_distance = round(json.loads(res.text)['ytd_run_totals']['distance'] / 1609.34, 2)
+    logging.info(running_distance)
+except Exception as e
+    logging.error(f"An error has occurred: {e}")
 
-res = requests.request("GET", config_data['s_url'], headers=headers, data=payload)
-
-running_distance = round(json.loads(res.text)['ytd_run_totals']['distance'] / 1609.34, 2)
-logging.info(running_distance)
 
 # Update running distance in Home Assistant
 headers = {
