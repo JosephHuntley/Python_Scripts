@@ -107,16 +107,15 @@ async def post_to_ha(reason_5pm, reason_6am):
         # Update reason if it exists
         reason = "You can run!" if reason == '' else reason
 
-        if reason is not None:
-            payload_reason = {
-                'state': reason,
-            }
-            res = requests.post(
-                f'{url}/states/{entity_id.replace("runable", "reason")}',
-                headers=headers,
-                json=payload_reason
-            )
-            # logging.info(f'{entity_id.replace("runable", "reason")}: {res.text}')
+        payload_reason = {
+            'state': reason,
+        }
+        res = requests.post(
+            f'{url}/states/{entity_id.replace("boolean.runable", "text.reason")}',
+            headers=headers,
+            json=payload_reason
+        )
+        logging.info(f'{entity_id.replace("runable", "reason")}: {res.text}')
     
 
 
