@@ -48,9 +48,9 @@ def get_reason(weather_5pm, weather_6am):
     is_runnable_5pm = weather_5pm['temp_f'] >= 55 and weather_5pm['is_rain'] != 1 and weather_5pm['is_snow'] != 1
     # Generate the reason for 5 PM
     reason_5pm = None if is_runnable_5pm else (
-        f"Temperature is {weather_5pm['temp_f']}°F, too cold." if weather_5pm['temp_f'] < 55 else "",
-        "\nIt will rain." if weather_5pm['is_rain'] == 1 else "",
-        "\nIt will snow." if weather_5pm['is_snow'] == 1 else ""
+        f"\n\t- Temperature is {weather_5pm['temp_f']}°F, too cold." if weather_5pm['temp_f'] < 55 else "",
+        "\n\t- It will rain." if weather_5pm['is_rain'] == 1 else "",
+        "\n\t- It will snow." if weather_5pm['is_snow'] == 1 else ""
     )
     # Join the non-empty strings to get the final reason for 5 PM, or set to an empty string if None
     reason_5pm = " ".join(filter(None, reason_5pm)) if reason_5pm is not None else ""
@@ -59,9 +59,9 @@ def get_reason(weather_5pm, weather_6am):
     is_runnable_6am = weather_6am['temp_f'] > 55 and weather_6am['is_rain'] != 1 and weather_6am['is_snow'] != 1
     # Generate the reason for 6 AM
     reason_6am = None if is_runnable_6am else (
-        f"Temperature is {weather_6am['temp_f']}°F, too cold." if weather_6am['temp_f'] < 55 else "",
-        "\nIt will rain." if weather_6am['is_rain'] == 1 else "",
-        "\nIt will snow." if weather_6am['is_snow'] == 1 else ""
+        f"\n\t- Temperature is {weather_6am['temp_f']}°F, too cold." if weather_6am['temp_f'] < 55 else "",
+        "\n\t- It will rain." if weather_6am['is_rain'] == 1 else "",
+        "\n\t- It will snow." if weather_6am['is_snow'] == 1 else ""
     )
     # Join the non-empty strings to get the final reason for 6 AM, or set to an empty string if None
     reason_6am = " ".join(filter(None, reason_6am)) if reason_6am is not None else ""
@@ -84,7 +84,6 @@ async def post_to_ha(reason_5pm, reason_6am):
     }
 
     for entity_id, reason in zip(entity_ids, [reason_5pm, reason_6am]):
-        logging.info(f'{entity_id}, {reason}')
         # Determine if it is runnable (reason is None)
         is_runnable = reason == ''
 
@@ -102,7 +101,7 @@ async def post_to_ha(reason_5pm, reason_6am):
             headers=headers,
             json=payload
         )
-        # logging.info(f'{entity_id}: {res.text}')
+        logging.info(f'{entity_id}: {res.status_code}')
 
         # Update reason if it exists
         reason = "You can run!" if reason == '' else reason
@@ -110,12 +109,13 @@ async def post_to_ha(reason_5pm, reason_6am):
         payload_reason = {
             'state': reason,
         }
+        entity_id = entity_id.replace("boolean.runable", "text.reason")
         res = requests.post(
-            f'{url}/states/{entity_id.replace("boolean.runable", "text.reason")}',
+            f'{url}/states/{entity_id}',
             headers=headers,
             json=payload_reason
         )
-        logging.info(f'{entity_id.replace("runable", "reason")}: {res.text}')
+        logging.info(f'{entity_id}: {res.status_code}')
     
 
 
@@ -145,11 +145,6 @@ async def main():
     reason_5pm, reason_6am = get_reason(weather_5pm, weather_6am)    
 
     await post_to_ha(reason_5pm, reason_6am)
-
-    # Print the temperatures and weather conditions with reasons
-    # logging.info(f"Is Runnable at 5 PM: {is_runnable_5pm or 'Reason: ' + ('Temperature <= 55' if weather_5pm['temp_f'] <= 55 else 'Rain or Snow')}. {reason_5pm}")
-
-    # logging.info(f"Is Runnable at 6 AM: {is_runnable_6am or 'Reason: ' + ('Temperature <= 55' if weather_6am['temp_f'] <= 55 else 'Rain or Snow')}. {reason_6am}")
 
 if __name__ == "__main__":
     asyncio.run(main())
