@@ -86,7 +86,7 @@ async def post_to_ha(reason_5pm, reason_6am):
     for entity_id, reason in zip(entity_ids, [reason_5pm, reason_6am]):
         logging.info(f'{entity_id}, {reason}')
         # Determine if it is runnable (reason is None)
-        is_runnable = reason is ''
+        is_runnable = reason == ''
 
         # Prepare payload for updating entities
         payload = {
