@@ -29,19 +29,20 @@ def get_weather_at_time(forecast_data, target_time):
     return None
 
 async def get_forecast(days=1, aqi='no', alerts='no'):
-    url = f"{config_data['weather_url']}key={config_data['weather_key']}&q={config_data['zipcode']}&days={days}&aqi={aqi}&alerts={alerts}"
-    payload = {}
-    headers = {}
-    
-    # Log that we are fetching the forecast
-    logging.info("Fetching forecast from the weather API...")
-    
-    res = requests.request("GET", url, headers=headers, data=payload)
-    
-    # Log that we have successfully retrieved the forecast
-    logging.info("Forecast successfully retrieved.")
-    
-    return res.text
+    try:
+        url = f"{config_data['weather_url']}key={config_data['weather_key']}&q={config_data['zipcode']}&days={days}&aqi={aqi}&alerts={alerts}"
+        payload = {}
+        headers = {}
+
+        logging.info("Fetching forecast from the weather API...")
+        res = requests.request("GET", url, headers=headers, data=payload)
+        res.raise_for_status()  # Raise HTTPError for bad responses
+
+        logging.info("Forecast successfully retrieved.")
+        return res.text
+    except requests.RequestException as e:
+        logging.error(f"Error fetching forecast: {e}")
+        return None
 
 def get_reason(weather_5pm, weather_6am):
     # Check if 5 PM is runnable
@@ -68,83 +69,54 @@ def get_reason(weather_5pm, weather_6am):
 
     return reason_5pm, reason_6am
 
-async def post_to_ha(reason_5pm, reason_6am):
-    url = config_data['HA_URL']
-    
-    entity_ids = [
-        'input_boolean.runable_5pm',
-        'input_boolean.runable_6am',
-        'input_text.reason_5pm',
-        'input_text.reason_6am',
-    ]
+async def post_to_ha(entity_id, state, friendly_name):
+    try:
+        url = config_data['HA_URL']
+        headers = {
+            'Authorization': f'Bearer {config_data["HA_TOKEN"]}',
+            'Content-Type': 'application/json',
+        }
 
-    headers = {
-        'Authorization': f'Bearer {config_data["HA_TOKEN"]}',
-        'Content-Type': 'application/json',
-    }
-
-    for entity_id, reason in zip(entity_ids, [reason_5pm, reason_6am]):
-        # Determine if it is runnable (reason is None)
-        is_runnable = reason == ''
-
-        # Prepare payload for updating entities
         payload = {
-            'state': 'on' if is_runnable else 'off',
+            'state': state,
             'attributes': {
-                'friendly_name': entity_id.split('.')[-1].replace('_', ' ').title(),
+                'friendly_name': friendly_name,
             },
         }
 
-        # Update state
+        logging.info(f'Updating {entity_id}...')
         res = requests.post(
             f'{url}/states/{entity_id}',
             headers=headers,
             json=payload
         )
-        logging.info(f'{entity_id}: {res.status_code}')
+        res.raise_for_status()  # Raise HTTPError for bad responses
 
-        # Update reason if it exists
-        reason = "You can run!" if reason == '' else reason
-
-        payload_reason = {
-            'state': reason,
-        }
-        entity_id = entity_id.replace("boolean.runable", "text.reason")
-        res = requests.post(
-            f'{url}/states/{entity_id}',
-            headers=headers,
-            json=payload_reason
-        )
-        logging.info(f'{entity_id}: {res.status_code}')
-    
-
+        logging.info(f'{entity_id} updated: {res.status_code}')
+    except requests.RequestException as e:
+        logging.error(f"Error updating {entity_id}: {e}")
 
 async def main():
-    # Your JSON data
     json_data = await get_forecast(2)
-    
-    # Log that we are parsing the JSON data
-    logging.info("Parsing the JSON data...")
-    
-    # Parse the JSON data
-    forecast_data = json.loads(json_data)
-    
-    # Log that we have successfully parsed the JSON data
-    logging.info("JSON data successfully parsed.")
-    
-    # Get the next available 5 PM and 6 AM
-    next_5pm, next_6am = get_next_forecast_times(forecast_data)
-    
-    # Log the next forecast times
-    logging.info(f"Next available 5 PM: {next_5pm}, Next available 6 AM: {next_6am}")
 
-    # Get weather conditions at the next available 5 PM and 6 AM
-    weather_5pm = get_weather_at_time(forecast_data, next_5pm)
-    weather_6am = get_weather_at_time(forecast_data, next_6am)
+    if json_data is not None:
+        logging.info("Parsing the JSON data...")
+        forecast_data = json.loads(json_data)
+        logging.info("JSON data successfully parsed.")
 
-    reason_5pm, reason_6am = get_reason(weather_5pm, weather_6am)    
+        next_5pm, next_6am = get_next_forecast_times(forecast_data)
+        logging.info(f"Next available 5 PM: {next_5pm}, Next available 6 AM: {next_6am}")
 
-    await post_to_ha(reason_5pm, reason_6am)
+        weather_5pm = get_weather_at_time(forecast_data, next_5pm)
+        weather_6am = get_weather_at_time(forecast_data, next_6am)
+
+        reason_5pm, reason_6am = get_reason(weather_5pm, weather_6am)
+
+        await post_to_ha('input_boolean.runable_5pm', 'on' if reason_5pm == '' else 'off', 'Runnable 5 PM')
+        await post_to_ha('input_text.reason_5pm', reason_5pm, 'Reason 5 PM')
+
+        await post_to_ha('input_boolean.runable_6am', 'on' if reason_6am == '' else 'off', 'Runnable 6 AM')
+        await post_to_ha('input_text.reason_6am', reason_6am, 'Reason 6 AM')
 
 if __name__ == "__main__":
     asyncio.run(main())
