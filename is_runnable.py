@@ -11,8 +11,18 @@ config_data = load_config()
 
 def get_next_forecast_times(forecast_data):
     current_time = datetime.strptime(forecast_data["location"]["localtime"], "%Y-%m-%d %H:%M")
+
     next_5pm = current_time.replace(hour=17, minute=0, second=0, microsecond=0)
-    next_6am = current_time.replace(hour=6, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    next_6am = current_time.replace(hour=6, minute=0, second=0, microsecond=0)
+
+    # Check if the current time is greater than 5 PM for the day
+    if current_time > next_5pm:
+        next_5pm += timedelta(days=1)
+
+    # Check if the current time is greater than 6 AM for the day
+    if current_time > next_6am:
+        next_6am += timedelta(days=1)
+
     return next_5pm, next_6am
 
 def get_weather_at_time(forecast_data, target_time):
